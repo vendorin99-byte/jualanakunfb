@@ -32,7 +32,7 @@ serve(async (req) => {
 
     let subject = "";
     let htmlBody = "";
-    const verifyLink = `https://jualanakunfb.my.id/auth/confirm?token_hash=${tokenHash}&type=${emailType}&next=${encodeURIComponent(redirectTo)}`;
+    const verifyLink = `https://jualanakunfb.my.id/auth/confirm?token_hash=${tokenHash}&type=${emailType}`;
 
     if (emailType === "signup" || emailType === "email_change_new") {
       subject = "Verifikasi Email - Jualanakun";
@@ -57,7 +57,7 @@ serve(async (req) => {
       `;
     } else if (emailType === "recovery") {
       subject = "Reset Password - Jualanakun";
-      const resetLink = `https://jualanakunfb.my.id/auth/confirm?token_hash=${tokenHash}&type=recovery&next=${encodeURIComponent("https://jualanakunfb.my.id/reset-password")}`;
+      const resetLink = `https://jualanakunfb.my.id/auth/confirm?token_hash=${tokenHash}&type=recovery`;
       htmlBody = `
         <!DOCTYPE html>
         <html>
