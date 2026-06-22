@@ -169,6 +169,35 @@ function renderTemplate(template: string, data: Record<string, any>): string {
       <p>Silakan cek dan verifikasi barang yang diterima.</p>
       <p>Jika ada masalah, hubungi kami melalui WhatsApp atau email.</p>
     `,
+    "admin-new-order": (data) => `
+      <h1>🛒 Order Baru Masuk!</h1>
+      <table style="border-collapse:collapse;width:100%">
+        <tr><td style="padding:8px;color:#666">No. Order</td><td style="padding:8px;font-weight:bold">${data.orderNumber || ""}</td></tr>
+        <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Nama</td><td style="padding:8px">${data.customerName || ""}</td></tr>
+        <tr><td style="padding:8px;color:#666">Email</td><td style="padding:8px">${data.customerEmail || ""}</td></tr>
+        <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Total</td><td style="padding:8px;font-weight:bold;color:#2c3e50">Rp${Number(data.totalPrice || 0).toLocaleString("id-ID")}</td></tr>
+      </table>
+      <p style="margin-top:20px">
+        <a href="https://jualanakunfb.my.id/admin/orders" style="background:#2c3e50;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">
+          Lihat di Admin Panel
+        </a>
+      </p>
+    `,
+    "admin-payment-proof": (data) => `
+      <h1>📤 Bukti Pembayaran Diunggah!</h1>
+      <p>Customer sudah upload bukti transfer untuk order berikut:</p>
+      <table style="border-collapse:collapse;width:100%">
+        <tr><td style="padding:8px;color:#666">No. Order</td><td style="padding:8px;font-weight:bold">${data.orderNumber || ""}</td></tr>
+        <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Nama</td><td style="padding:8px">${data.customerName || ""}</td></tr>
+        <tr><td style="padding:8px;color:#666">Email</td><td style="padding:8px">${data.customerEmail || ""}</td></tr>
+        <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Total</td><td style="padding:8px;font-weight:bold;color:#2c3e50">Rp${Number(data.totalPrice || 0).toLocaleString("id-ID")}</td></tr>
+      </table>
+      <p style="margin-top:20px">
+        <a href="https://jualanakunfb.my.id/admin/orders" style="background:#27ae60;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block">
+          Verifikasi Sekarang
+        </a>
+      </p>
+    `,
   };
 
   const render = templates[template];

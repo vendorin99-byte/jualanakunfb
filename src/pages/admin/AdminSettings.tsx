@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, MessageCircle } from "lucide-react";
+import { Loader2, Save, MessageCircle, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,12 +14,14 @@ export default function AdminSettings() {
   const qc = useQueryClient();
   const [whatsapp, setWhatsapp] = useState("");
   const [hours, setHours] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (data) {
       setWhatsapp(data.whatsapp_admin_number || "");
       setHours(data.operational_hours || "");
+      setAdminEmail(data.admin_notification_email || "");
     }
   }, [data]);
 
@@ -28,11 +30,16 @@ export default function AdminSettings() {
       toast.error("Format nomor: 10-15 digit, tanpa + atau spasi (contoh: 628123456789)");
       return;
     }
+    if (adminEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
+      toast.error("Format email notifikasi tidak valid");
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await supabase.from("app_settings").upsert([
         { key: "whatsapp_admin_number", value: whatsapp, updated_at: new Date().toISOString() },
         { key: "operational_hours", value: hours, updated_at: new Date().toISOString() },
+        { key: "admin_notification_email", value: adminEmail, updated_at: new Date().toISOString() },
       ]);
       if (error) throw error;
       toast.success("Pengaturan tersimpan");
@@ -83,6 +90,33 @@ export default function AdminSettings() {
               maxLength={100}
             />
             <p className="text-xs text-muted-foreground">Ditampilkan di footer.</p>
+          </div>
+
+          <Button onClick={handleSave} disabled={saving} className="gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Simpan
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5 text-primary" /> Notifikasi Email Admin</CardTitle>
+          <CardDescription>Email ini akan menerima notifikasi saat ada order baru masuk dan bukti bayar diunggah.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="adminEmail">Email Notifikasi</Label>
+            <Input
+              id="adminEmail"
+              type="email"
+              placeholder="admin@jualanakunfb.my.id"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value.trim())}
+            />
+            <p className="text-xs text-muted-foreground">
+              Notifikasi dikirim otomatis saat: order baru masuk &amp; customer upload bukti bayar. Kosongkan untuk menonaktifkan.
+            </p>
           </div>
 
           <Button onClick={handleSave} disabled={saving} className="gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground">
