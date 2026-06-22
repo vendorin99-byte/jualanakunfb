@@ -90,44 +90,41 @@ export default function Checkout() {
       if (!result?.success) throw new Error(result?.message || "Gagal memproses pembelian");
 
       await refreshBalance();
-      clearCart();
       toast.success("Pembelian berhasil!");
-
-      // Kirim email kredensial jika order sudah completed (stok tersedia)
-      try {
-        const { data: creds } = await supabase
-          .from("account_credentials")
-          .select("email, password, twofa_secret, recovery_email, notes, account_grades(grade)")
-          .eq("sold_to_order", result.order_id);
-
-        if (creds && creds.length > 0) {
-          const gradeLabel = (creds[0] as any)?.account_grades?.grade
-            ? `Grade ${(creds[0] as any).account_grades.grade}` : null;
-          await supabase.functions.invoke("send-email", {
-            body: {
-              to: user.email,
-              subject: `Akun kamu siap! Order #${result.order_number}`,
-              template: "order-credentials",
-              data: {
-                orderNumber: result.order_number,
-                customerName: user.email?.split("@")[0],
-                credentials: creds.map((c: any) => ({
-                  email: c.email,
-                  password: c.password,
-                  twofa: c.twofa_secret,
-                  recovery: c.recovery_email,
-                  notes: c.notes,
-                  grade_label: c.account_grades?.grade ? `Grade ${c.account_grades.grade}` : gradeLabel,
-                })),
-              },
-            },
-          });
-        }
-      } catch (_) {
-        // Email gagal tidak batalkan pembelian
-      }
-
       navigate(`/order-success?orders=${result.order_number}`);
+      clearCart();
+
+      // Kirim email kredensial jika order sudah completed (stok tersedia) — fire and forget
+      supabase
+        .from("account_credentials")
+        .select("email, password, twofa_secret, recovery_email, notes, account_grades(grade)")
+        .eq("sold_to_order", result.order_id)
+        .then(({ data: creds }) => {
+          if (creds && creds.length > 0) {
+            const gradeLabel = (creds[0] as any)?.account_grades?.grade
+              ? `Grade ${(creds[0] as any).account_grades.grade}` : null;
+            supabase.functions.invoke("send-email", {
+              body: {
+                to: user.email,
+                subject: `Akun kamu siap! Order #${result.order_number}`,
+                template: "order-credentials",
+                data: {
+                  orderNumber: result.order_number,
+                  customerName: user.email?.split("@")[0],
+                  credentials: creds.map((c: any) => ({
+                    email: c.email,
+                    password: c.password,
+                    twofa: c.twofa_secret,
+                    recovery: c.recovery_email,
+                    notes: c.notes,
+                    grade_label: c.account_grades?.grade ? `Grade ${c.account_grades.grade}` : gradeLabel,
+                  })),
+                },
+              },
+            }).catch(() => {});
+          }
+        })
+        .catch(() => {});
     } catch (err: any) {
       toast.error("Gagal: " + err.message);
     } finally { setLoading(false); }
