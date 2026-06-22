@@ -23,7 +23,10 @@ export default function AuthConfirm() {
       } else if (type === "recovery") {
         navigate("/reset-password", { replace: true });
       } else {
-        navigate(next, { replace: true });
+        const destination = next.startsWith("http")
+          ? new URL(next).pathname
+          : next;
+        navigate(destination || "/profile", { replace: true });
       }
     });
   }, []);
