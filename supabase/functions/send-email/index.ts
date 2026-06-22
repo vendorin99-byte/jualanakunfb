@@ -67,7 +67,7 @@ serve(async (req) => {
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "onboarding@resend.dev",
+        from: "BuyingAccount <noreply@jualanakunfb.my.id>",
         to,
         subject,
         html: emailHtml,
@@ -169,6 +169,30 @@ function renderTemplate(template: string, data: Record<string, any>): string {
       <p>Silakan cek dan verifikasi barang yang diterima.</p>
       <p>Jika ada masalah, hubungi kami melalui WhatsApp atau email.</p>
     `,
+    "order-credentials": (data) => {
+      const credRows = (data.credentials || []).map((c: any, i: number) => {
+        const rows = [
+          `<tr><td colspan="2" style="padding:8px 8px 2px;font-weight:bold;color:#2c3e50;background:#f0f4f8">Akun ${i + 1}${c.grade_label ? ` — ${c.grade_label}` : ""}</td></tr>`,
+          c.email    ? `<tr><td style="padding:4px 8px;color:#666;width:120px">Email</td><td style="padding:4px 8px;font-family:monospace">${c.email}</td></tr>` : "",
+          c.password ? `<tr><td style="padding:4px 8px;color:#666">Password</td><td style="padding:4px 8px;font-family:monospace">${c.password}</td></tr>` : "",
+          c.twofa    ? `<tr><td style="padding:4px 8px;color:#666">2FA Key</td><td style="padding:4px 8px;font-family:monospace">${c.twofa}</td></tr>` : "",
+          c.recovery ? `<tr><td style="padding:4px 8px;color:#666">Recovery</td><td style="padding:4px 8px;font-family:monospace">${c.recovery}</td></tr>` : "",
+          c.notes    ? `<tr><td style="padding:4px 8px;color:#666">Catatan</td><td style="padding:4px 8px">${c.notes}</td></tr>` : "",
+        ].filter(Boolean).join("");
+        return rows;
+      }).join("");
+      return `
+        <h1 style="color:#2c3e50">🎉 Pesananmu sudah siap!</h1>
+        <p>Halo <strong>${data.customerName || ""}</strong>,</p>
+        <p>Pesanan <strong>${data.orderNumber || ""}</strong> sudah diproses. Berikut detail akun yang kamu beli:</p>
+        <table style="border-collapse:collapse;width:100%;margin:16px 0;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
+          ${credRows}
+        </table>
+        ${data.adminNotes ? `<p style="background:#fffbea;padding:10px;border-radius:6px;border-left:3px solid #f59e0b"><strong>Catatan admin:</strong> ${data.adminNotes}</p>` : ""}
+        <p>Simpan informasi ini dengan aman. Kamu juga bisa lihat detail order di <a href="https://jualanakunfb.my.id/order/${data.orderNumber}">halaman ordermu</a>.</p>
+        <p style="color:#999;font-size:12px">Jika ada masalah, hubungi kami melalui halaman order.</p>
+      `;
+    },
     "admin-new-order": (data) => `
       <h1>🛒 Order Baru Masuk!</h1>
       <table style="border-collapse:collapse;width:100%">

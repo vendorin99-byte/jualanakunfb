@@ -93,9 +93,52 @@ export default function AdminOrders() {
       if (!r?.success) throw new Error(r?.message || "Gagal");
       return r;
     },
-    onSuccess: (r: any) => {
+    onSuccess: async (r: any, { orderId, notes }) => {
       toast.success(`Berhasil assign ${r.assigned_count} akun (${r.total_assigned}/${r.needed})`);
       queryClient.invalidateQueries({ queryKey: ["admin-orders-list"] });
+
+      // Kirim email kredensial ke buyer
+      if (fulfilling && r.assigned_count > 0) {
+        try {
+          const { data: creds } = await supabase
+            .from("account_credentials")
+            .select("email, password, twofa_secret, recovery_email, notes, grade_id")
+            .eq("sold_to_order", orderId);
+
+          const gradeIds = [...new Set((creds || []).map((c: any) => c.grade_id).filter(Boolean))];
+          let gradeMap: Record<string, string> = {};
+          if (gradeIds.length > 0) {
+            const { data: grades } = await supabase.from("account_grades").select("id, grade").in("id", gradeIds);
+            gradeMap = Object.fromEntries((grades || []).map((g: any) => [g.id, g.grade]));
+          }
+
+          const credList = (creds || []).map((c: any) => ({
+            email: c.email || "",
+            password: c.password || "",
+            twofa: c.twofa_secret || "",
+            recovery: c.recovery_email || "",
+            notes: c.notes || "",
+            grade_label: c.grade_id ? gradeMap[c.grade_id] : null,
+          }));
+
+          await supabase.functions.invoke("send-email", {
+            body: {
+              to: fulfilling.customer_email,
+              subject: `Akun pesananmu sudah siap — ${fulfilling.order_number}`,
+              template: "order-credentials",
+              data: {
+                customerName: fulfilling.customer_name,
+                orderNumber: fulfilling.order_number,
+                credentials: credList,
+                adminNotes: notes || fulfilling.admin_notes || "",
+              },
+            },
+          });
+        } catch (e) {
+          console.error("Gagal kirim email kredensial:", e);
+        }
+      }
+
       setFulfilling(null);
       setFulfillNotes("");
       setPickedCreds([]);
