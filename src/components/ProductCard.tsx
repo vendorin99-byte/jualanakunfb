@@ -48,7 +48,7 @@ export function ProductCard({ id, name, category, price, stock, rating, image_ur
           <div className="absolute right-3 top-3">
             <Badge
               variant={stockBadge.variant}
-              className={stockBadge.pulse ? 'animate-pulse' : ''}
+              className={`${stockBadge.pulse ? 'animate-pulse' : ''} ${stockBadge.badgeClass}`}
             >
               {stockBadge.label}
             </Badge>

@@ -27,7 +27,7 @@ export function formatRupiah(amount: number): string {
 }
 
 export function getStockBadge(stock: number) {
-  if (stock === 0) return { label: 'Habis', variant: 'destructive' as const, pulse: false };
-  if (stock <= 5) return { label: 'Terbatas', variant: 'secondary' as const, pulse: true };
-  return { label: 'Ready', variant: 'default' as const, pulse: false };
+  if (stock === 0) return { label: 'Habis', variant: 'destructive' as const, pulse: false, badgeClass: '' };
+  if (stock <= 5) return { label: 'Terbatas', variant: 'secondary' as const, pulse: true, badgeClass: '' };
+  return { label: 'Ready', variant: 'default' as const, pulse: false, badgeClass: 'bg-yellow-400 text-yellow-900 hover:bg-yellow-400/80 border-transparent' };
 }

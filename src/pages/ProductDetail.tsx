@@ -87,7 +87,7 @@ export default function ProductDetail() {
         <div>
           <div className="mb-2 flex items-center gap-2">
             <Badge variant="outline" className="uppercase">{product.category}</Badge>
-            <Badge variant={stockBadge.variant} className={stockBadge.pulse ? 'animate-pulse' : ''}>
+            <Badge variant={stockBadge.variant} className={`${stockBadge.pulse ? 'animate-pulse' : ''} ${stockBadge.badgeClass}`}>
               Stok: {product.stock} — {stockBadge.label}
             </Badge>
           </div>
