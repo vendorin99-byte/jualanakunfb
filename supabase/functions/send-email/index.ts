@@ -67,7 +67,7 @@ serve(async (req) => {
         Authorization: `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "BuyingAccount <noreply@jualanakunfb.my.id>",
+        from: "Jualanakun <noreply@jualanakunfb.my.id>",
         to,
         subject,
         html: emailHtml,
@@ -183,7 +183,7 @@ function renderTemplate(template: string, data: Record<string, any>): string {
       }).join("");
       return `
         <h1 style="color:#2c3e50">🎉 Pesananmu sudah siap!</h1>
-        <p>Halo <strong>${data.customerName || ""}</strong>,</p>
+        <p>Halo,</p>
         <p>Pesanan <strong>${data.orderNumber || ""}</strong> sudah diproses. Berikut detail akun yang kamu beli:</p>
         <table style="border-collapse:collapse;width:100%;margin:16px 0;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
           ${credRows}
@@ -245,7 +245,7 @@ function renderTemplate(template: string, data: Record<string, any>): string {
         ${render(data)}
         <hr>
         <p style="font-size: 12px; color: #999;">
-          © 2026 BuyingAccount. Semua hak dilindungi.
+          © 2026 Jualanakun. Semua hak dilindungi.
         </p>
       </body>
     </html>
