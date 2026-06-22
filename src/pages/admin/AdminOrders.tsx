@@ -50,13 +50,77 @@ export default function AdminOrders() {
     mutationFn: async ({ id, approve, notes }: { id: string; approve: boolean; notes: string }) => {
       const { error } = await supabase.from("orders").update({
         payment_status: approve ? "paid" : "failed",
-        order_status: approve ? "completed" : "cancelled",
+        order_status: approve ? "processing" : "cancelled",
         admin_notes: notes || null,
       }).eq("id", id);
       if (error) throw error;
+      return { approve, id, notes };
     },
-    onSuccess: (_, vars) => {
-      toast.success(vars.approve ? "Pembayaran disetujui!" : "Pembayaran ditolak");
+    onSuccess: async (result: any) => {
+      if (!result.approve) {
+        toast.success("Pembayaran ditolak");
+        queryClient.invalidateQueries({ queryKey: ["admin-orders-list"] });
+        setReviewing(null);
+        setAdminNotes("");
+        return;
+      }
+
+      // Auto-fulfill: assign kredensial otomatis
+      try {
+        const { data: fulfillData, error: fulfillErr } = await supabase.rpc("admin_fulfill_order", {
+          _order_id: result.id,
+          _credential_ids: null,
+          _notes: result.notes || null,
+        });
+        if (fulfillErr) throw fulfillErr;
+        const r = Array.isArray(fulfillData) ? fulfillData[0] : fulfillData;
+
+        if (r?.assigned_count > 0) {
+          // Kirim email kredensial ke buyer
+          const order = reviewing;
+          if (order) {
+            const { data: creds } = await supabase
+              .from("account_credentials")
+              .select("email, password, twofa_secret, recovery_email, notes, grade_id")
+              .eq("sold_to_order", result.id);
+
+            const gradeIds = [...new Set((creds || []).map((c: any) => c.grade_id).filter(Boolean))];
+            let gradeMap: Record<string, string> = {};
+            if (gradeIds.length > 0) {
+              const { data: grades } = await supabase.from("account_grades").select("id, grade").in("id", gradeIds);
+              gradeMap = Object.fromEntries((grades || []).map((g: any) => [g.id, g.grade]));
+            }
+
+            await supabase.functions.invoke("send-email", {
+              body: {
+                to: order.customer_email,
+                subject: `Akun pesananmu sudah siap — ${order.order_number}`,
+                template: "order-credentials",
+                data: {
+                  customerName: order.customer_name,
+                  orderNumber: order.order_number,
+                  credentials: (creds || []).map((c: any) => ({
+                    email: c.email || "",
+                    password: c.password || "",
+                    twofa: c.twofa_secret || "",
+                    recovery: c.recovery_email || "",
+                    notes: c.notes || "",
+                    grade_label: c.grade_id ? gradeMap[c.grade_id] : null,
+                  })),
+                  adminNotes: result.notes || "",
+                },
+              },
+            }).catch(console.error);
+          }
+          toast.success(`Pembayaran disetujui & ${r.assigned_count} akun terkirim ke buyer!`);
+        } else {
+          toast.success("Pembayaran disetujui! Stok habis — assign akun manual.");
+        }
+      } catch (e: any) {
+        toast.success("Pembayaran disetujui!");
+        toast.error("Auto-assign gagal: " + e.message);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["admin-orders-list"] });
       setReviewing(null);
       setAdminNotes("");
