@@ -47,9 +47,7 @@ serve(async (req) => {
           <p>Halo <strong>${fullName}</strong>,</p>
           <p>Terima kasih sudah mendaftar. Klik tombol di bawah untuk verifikasi email kamu:</p>
           <p><a href="${verifyLink}" class="btn">Verifikasi Email Sekarang</a></p>
-          <p>Atau copy link ini ke browser:</p>
-          <p class="link">${verifyLink}</p>
-          <p style="color:#999;font-size:12px">Link berlaku 24 jam. Jika bukan kamu yang daftar, abaikan email ini.</p>
+          <p style="color:#999;font-size:12px">Link berlaku 10 menit. Jika bukan kamu yang daftar, abaikan email ini.</p>
           <hr>
           <p style="font-size:12px;color:#999">© 2026 Jualanakun. Semua hak dilindungi.</p>
         </body>
@@ -69,9 +67,7 @@ serve(async (req) => {
           <p>Halo <strong>${fullName}</strong>,</p>
           <p>Kami menerima permintaan reset password untuk akun kamu. Klik tombol di bawah:</p>
           <p><a href="${resetLink}" class="btn">Reset Password</a></p>
-          <p>Atau copy link ini ke browser:</p>
-          <p class="link">${resetLink}</p>
-          <p style="color:#999;font-size:12px">Link berlaku 1 jam. Jika bukan kamu yang request, abaikan email ini.</p>
+          <p style="color:#999;font-size:12px">Link berlaku 10 menit. Jika bukan kamu yang request, abaikan email ini.</p>
           <hr>
           <p style="font-size:12px;color:#999">© 2026 Jualanakun. Semua hak dilindungi.</p>
         </body>
