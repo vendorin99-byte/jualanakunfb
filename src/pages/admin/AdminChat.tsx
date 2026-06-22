@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Send, Loader2, MessageCircle, RefreshCw, Package } from "lucide-react";
+import { Send, Loader2, MessageCircle, RefreshCw, Package, Phone, Mail, MapPin, ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,31 @@ export default function AdminChat() {
   });
 
   const currentConv = convs.find((c: any) => c.id === selected);
+
+  const { data: customerInfo } = useQuery({
+    queryKey: ["admin-customer-info", currentConv?.user_id],
+    enabled: !!currentConv?.user_id,
+    queryFn: async () => {
+      const [profileRes, orderRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("full_name, phone, country, created_at")
+          .eq("user_id", currentConv!.user_id)
+          .maybeSingle(),
+        supabase
+          .from("orders")
+          .select("customer_email, total_price")
+          .eq("user_id", currentConv!.user_id)
+          .in("payment_status", ["paid"]),
+      ]);
+      const profile = profileRes.data;
+      const orders = orderRes.data || [];
+      const email = orders[0]?.customer_email || null;
+      const totalOrders = orders.length;
+      const totalSpent = orders.reduce((s: number, o: any) => s + (o.total_price || 0), 0);
+      return { profile, email, totalOrders, totalSpent };
+    },
+  });
 
   const { data: buyerOrders = [] } = useQuery({
     queryKey: ["admin-buyer-orders", currentConv?.user_id],
@@ -228,17 +253,46 @@ export default function AdminChat() {
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between border-b px-4 py-2">
-                <span className="font-semibold">{currentConv?.name || "User"}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 text-xs"
-                  onClick={openWarrantyDialog}
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Kirim Akun Pengganti
-                </Button>
+              <div className="border-b px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold leading-tight">{currentConv?.name || "User"}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      {customerInfo?.email && (
+                        <span className="flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          {customerInfo.email}
+                        </span>
+                      )}
+                      {customerInfo?.profile?.phone && (
+                        <span className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {customerInfo.profile.phone}
+                        </span>
+                      )}
+                      {customerInfo?.profile?.country && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {customerInfo.profile.country}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <ShoppingBag className="h-3 w-3" />
+                        {customerInfo?.totalOrders ?? 0} order
+                        {customerInfo?.totalSpent ? ` · ${formatRupiah(customerInfo.totalSpent)}` : ""}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 gap-1.5 text-xs"
+                    onClick={openWarrantyDialog}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Kirim Akun Pengganti
+                  </Button>
+                </div>
               </div>
               <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto p-4">
                 {messages.map((m: any) => (
