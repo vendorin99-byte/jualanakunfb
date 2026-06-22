@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Star, ShoppingCart, ArrowLeft, Check, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import { toast } from "sonner";
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const addItem = useCartStore((s) => s.addItem);
+  const navigate = useNavigate();
 
   const { data: product, isLoading } = useQuery({
     queryKey: ["product", id],
@@ -26,6 +27,12 @@ export default function ProductDetail() {
     },
     enabled: !!id,
   });
+
+  // Hooks must be called before any early return
+  const p = product as any;
+  const countdown = useCountdown(p?.sale_ends_at);
+  const activeFlash = !!p?.sale_price && countdown.isActive;
+  const displayPrice = activeFlash ? p.sale_price : (product?.price ?? 0);
 
   if (isLoading) {
     return (
@@ -56,10 +63,6 @@ export default function ProductDetail() {
 
   const stockBadge = getStockBadge(product.stock);
   const features = (product.features as string[]) || [];
-  const p = product as any;
-  const countdown = useCountdown(p.sale_ends_at);
-  const activeFlash = !!p.sale_price && countdown.isActive;
-  const displayPrice = activeFlash ? p.sale_price : product.price;
 
   const handleAddToCart = () => {
     if (product.stock === 0) return;
@@ -76,7 +79,7 @@ export default function ProductDetail() {
 
   const handleBuyNow = () => {
     handleAddToCart();
-    window.location.href = "/checkout";
+    navigate("/checkout");
   };
 
   return (

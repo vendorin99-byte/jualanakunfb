@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { z } from "zod";
-import { Loader2, ShieldCheck, Upload, FileImage, X } from "lucide-react";
+import { Loader2, ShieldCheck, Upload, FileImage, X, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useWhatsAppNumber } from "@/hooks/use-app-settings";
 import { toast } from "sonner";
 
 const ISSUE_TYPES = [
@@ -36,7 +35,6 @@ interface Props {
 }
 
 export function WarrantyClaimDialog({ order }: Props) {
-  const number = useWhatsAppNumber();
   const [open, setOpen] = useState(false);
   const [issueType, setIssueType] = useState<string>("");
   const [description, setDescription] = useState("");
@@ -57,10 +55,7 @@ export function WarrantyClaimDialog({ order }: Props) {
       toast.error(parsed.error.errors[0]?.message || "Form tidak valid");
       return;
     }
-    if (!number) {
-      toast.error("Nomor WhatsApp admin belum diatur, hubungi admin secara manual.");
-      return;
-    }
+
     setSubmitting(true);
     try {
       let proofUrl = "";
@@ -79,33 +74,42 @@ export function WarrantyClaimDialog({ order }: Props) {
         if (upErr) throw upErr;
         const { data: signed } = await supabase.storage
           .from("warranty-proofs")
-          .createSignedUrl(path, 60 * 60 * 24 * 7); // 7 hari
+          .createSignedUrl(path, 60 * 60 * 24 * 7);
         proofUrl = signed?.signedUrl || "";
       }
 
       const productName = order.products?.name || "-";
-      const tanggal = new Date(order.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+      const tanggal = new Date(order.created_at).toLocaleDateString("id-ID", {
+        day: "numeric", month: "long", year: "numeric",
+      });
+
       const lines = [
-        "Halo Admin BuyingAccount, saya ingin ajukan klaim garansi:",
-        "",
-        `No. Order: ${order.order_number}`,
+        `🛡️ Klaim Garansi — No. Order: ${order.order_number}`,
         `Produk: ${productName}`,
         `Tanggal Order: ${tanggal}`,
         `Email: ${order.customer_email}`,
-        "",
-        `Jenis Masalah: ${parsed.data.issue_type}`,
+        ``,
+        `Masalah: ${parsed.data.issue_type}`,
         `Deskripsi: ${parsed.data.description}`,
       ];
       if (proofUrl) {
-        lines.push("", `Bukti (berlaku 7 hari): ${proofUrl}`);
+        lines.push(``, `Bukti: ${proofUrl}`);
       }
-      lines.push("", "Mohon bantuannya, terima kasih.");
 
-      const url = `https://wa.me/${number}?text=${encodeURIComponent(lines.join("\n"))}`;
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast.success("Membuka WhatsApp...");
+      const { data, error } = await supabase.rpc("send_chat_message", {
+        _content: lines.join("\n"),
+      });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (error || !row?.success) {
+        throw new Error(row?.message || error?.message || "Gagal mengirim pesan");
+      }
+
+      toast.success("Klaim garansi terkirim ke live chat! Admin akan segera membalas.");
       setOpen(false);
       setIssueType(""); setDescription(""); setFile(null);
+
+      // Buka chat widget
+      window.dispatchEvent(new CustomEvent("open-chat-widget"));
     } catch (err: any) {
       toast.error("Gagal: " + (err.message || "unknown"));
     } finally {
@@ -124,7 +128,7 @@ export function WarrantyClaimDialog({ order }: Props) {
         <DialogHeader>
           <DialogTitle>Klaim Garansi</DialogTitle>
           <DialogDescription>
-            Isi form berikut, kami akan buka WhatsApp dengan pesan otomatis ke admin.
+            Isi form berikut, klaim akan dikirim langsung ke live chat admin.
           </DialogDescription>
         </DialogHeader>
 
@@ -175,9 +179,16 @@ export function WarrantyClaimDialog({ order }: Props) {
             )}
           </div>
 
-          <Button onClick={handleSubmit} disabled={submitting} className="w-full gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground">
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-            Kirim via WhatsApp
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full gap-2 bg-gradient-to-r from-primary to-accent text-primary-foreground"
+          >
+            {submitting
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <MessageCircle className="h-4 w-4" />
+            }
+            Kirim ke Live Chat
           </Button>
         </div>
       </DialogContent>

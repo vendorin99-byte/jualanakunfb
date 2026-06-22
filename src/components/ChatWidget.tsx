@@ -46,6 +46,13 @@ export function ChatWidget() {
     },
   });
 
+  // Auto-open when warranty claim is submitted
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("open-chat-widget", handler);
+    return () => window.removeEventListener("open-chat-widget", handler);
+  }, []);
+
   // Realtime subscribe
   useEffect(() => {
     if (!conv?.id) return;
