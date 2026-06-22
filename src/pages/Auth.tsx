@@ -40,6 +40,11 @@ export default function Auth() {
     if (!authLoading && session) navigate(redirect, { replace: true });
   }, [session, authLoading, navigate, redirect]);
 
+  useEffect(() => {
+    const err = params.get("error");
+    if (err) toast.error(err);
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = loginSchema.safeParse({ email: form.email, password: form.password });

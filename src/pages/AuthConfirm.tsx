@@ -19,7 +19,11 @@ export default function AuthConfirm() {
 
     supabase.auth.verifyOtp({ token_hash: tokenHash, type }).then(({ error }) => {
       if (error) {
-        navigate(`/verify-email?error=${encodeURIComponent(error.message)}`, { replace: true });
+        if (type === "recovery") {
+          navigate(`/auth?error=${encodeURIComponent("Link reset password sudah dipakai atau kadaluarsa. Minta link baru.")}`, { replace: true });
+        } else {
+          navigate(`/verify-email?error=${encodeURIComponent(error.message)}`, { replace: true });
+        }
       } else if (type === "recovery") {
         navigate("/reset-password", { replace: true });
       } else {
