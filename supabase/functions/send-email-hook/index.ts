@@ -25,7 +25,6 @@ serve(async (req) => {
     }
 
     const email = user?.email;
-    const fullName = user?.user_metadata?.full_name || email;
     const tokenHash = email_data?.token_hash;
     const redirectTo = email_data?.redirect_to || "https://jualanakunfb.my.id/verify-email";
     const emailType = email_data?.email_action_type;
@@ -44,7 +43,7 @@ serve(async (req) => {
         </head>
         <body>
           <h1>Selamat datang di Jualanakun!</h1>
-          <p>Halo <strong>${fullName}</strong>,</p>
+          <p>Halo,</p>
           <p>Terima kasih sudah mendaftar. Klik tombol di bawah untuk verifikasi email kamu:</p>
           <p><a href="${verifyLink}" class="btn">Verifikasi Email Sekarang</a></p>
           <p style="color:#999;font-size:12px">Link berlaku 10 menit. Jika bukan kamu yang daftar, abaikan email ini.</p>
@@ -64,8 +63,8 @@ serve(async (req) => {
         </head>
         <body>
           <h1>Reset Password</h1>
-          <p>Halo <strong>${fullName}</strong>,</p>
-          <p>Kami menerima permintaan reset password untuk akun kamu. Klik tombol di bawah:</p>
+          <p>Halo,</p>
+          <p>Kami menerima permintaan reset password untuk akun kamu (<strong>${email}</strong>). Klik tombol di bawah:</p>
           <p><a href="${resetLink}" class="btn">Reset Password</a></p>
           <p style="color:#999;font-size:12px">Link berlaku 10 menit. Jika bukan kamu yang request, abaikan email ini.</p>
           <hr>
