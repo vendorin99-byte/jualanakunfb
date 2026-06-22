@@ -87,20 +87,6 @@ export default function Auth() {
       });
       if (error) throw error;
 
-      // Send signup confirmation email via Resend
-      supabase.functions.invoke("send-email", {
-        body: {
-          to: parsed.data.email,
-          subject: "Verifikasi Email - Daftar BuyingAccount",
-          template: "signup-confirmation",
-          data: {
-            fullName: parsed.data.full_name,
-            email: parsed.data.email,
-            verifyLink: `${window.location.origin}/verify-email?email=${encodeURIComponent(parsed.data.email)}`,
-          },
-        },
-      }).catch((err) => console.error("Failed to send signup email:", err));
-
       toast.success("Cek email untuk verifikasi akun");
       navigate(`/verify-email?email=${encodeURIComponent(parsed.data.email)}`, { replace: true });
     } catch (err: any) {
