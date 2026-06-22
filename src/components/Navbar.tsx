@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ShoppingCart, Menu, X, Wallet, User, LogOut, Receipt, Heart } from "lucide-react";
+import { NotificationBell } from "./NotificationBell";
 import { useState } from "react";
 import { useCartStore } from "@/store/cart";
 import { useAuth } from "@/hooks/use-auth";
@@ -37,6 +38,8 @@ export function Navbar() {
               <Wallet className="h-4 w-4" /> {formatRupiah(balance)}
             </Link>
           )}
+
+          <NotificationBell />
 
           <Sheet>
             <SheetTrigger asChild>

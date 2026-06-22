@@ -1,7 +1,8 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Star, ShoppingCart, ArrowLeft, Check } from "lucide-react";
+import { Star, ShoppingCart, ArrowLeft, Check, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useCountdown } from "@/hooks/use-countdown";
 import { useCartStore } from "@/store/cart";
 import { formatRupiah, getStockBadge, CATEGORY_EMOJI } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -55,13 +56,17 @@ export default function ProductDetail() {
 
   const stockBadge = getStockBadge(product.stock);
   const features = (product.features as string[]) || [];
+  const p = product as any;
+  const countdown = useCountdown(p.sale_ends_at);
+  const activeFlash = !!p.sale_price && countdown.isActive;
+  const displayPrice = activeFlash ? p.sale_price : product.price;
 
   const handleAddToCart = () => {
     if (product.stock === 0) return;
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: displayPrice,
       image_url: product.image_url,
       category: product.category,
       stock: product.stock,
@@ -97,7 +102,18 @@ export default function ProductDetail() {
             <span className="font-medium">{product.rating}</span>
             <span className="text-muted-foreground">/ 5.0</span>
           </div>
-          <p className="mb-6 text-3xl font-bold text-primary">{formatRupiah(product.price)}</p>
+          <div className="mb-6 flex flex-wrap items-end gap-3">
+            <p className="text-3xl font-bold text-primary">{formatRupiah(displayPrice)}</p>
+            {activeFlash && (
+              <>
+                <p className="text-lg text-muted-foreground line-through">{formatRupiah(product.price)}</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-sm font-semibold text-red-600">
+                  <Zap className="h-3.5 w-3.5" /> Flash Sale
+                  {countdown.formatted && <span className="font-mono ml-1">{countdown.formatted}</span>}
+                </span>
+              </>
+            )}
+          </div>
           <p className="mb-6 leading-relaxed text-muted-foreground">{product.description}</p>
 
           {features.length > 0 && (

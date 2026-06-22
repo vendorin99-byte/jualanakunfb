@@ -210,6 +210,8 @@ export default function Products() {
               stock={product.stock}
               rating={Number(product.rating)}
               image_url={product.image_url}
+              sale_price={(product as any).sale_price}
+              sale_ends_at={(product as any).sale_ends_at}
             />
           ))}
         </div>

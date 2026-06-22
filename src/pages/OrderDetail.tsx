@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Copy, Check, Download, Lock, KeyRound, Upload, Loader2, FileImage } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Copy, Check, Download, Lock, KeyRound, Upload, Loader2, FileImage, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRupiah, CATEGORY_EMOJI } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { WarrantyClaimDialog } from "@/components/WarrantyClaimDialog";
@@ -74,6 +75,7 @@ const ORDER_STATUS_MAP = {
 export default function OrderDetail() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const [copiedIdx, setCopiedIdx] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -216,6 +218,18 @@ export default function OrderDetail() {
     },
     enabled: !!order && order.payment_status === "paid",
   });
+
+  // Auto-prompt review sekali setelah order selesai
+  useEffect(() => {
+    if (!order || order.order_status !== "completed" || !user) return;
+    const key = `review-prompted-${order.id}`;
+    if (localStorage.getItem(key)) return;
+    const timer = setTimeout(() => {
+      setReviewOpen(true);
+      localStorage.setItem(key, "1");
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [order?.id, order?.order_status, user]);
 
   // Ambil field terstruktur jika ada, fallback parse dari credentials_encrypted
   const getFields = (c: any) => {
@@ -584,6 +598,28 @@ export default function OrderDetail() {
           </div>
         )}
       </div>
+
+      {/* Auto review prompt dialog */}
+      {product?.id && (
+        <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                Bagaimana pengalamanmu?
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Pesananmu sudah selesai! Yuk berikan ulasan untuk membantu pembeli lain.
+            </p>
+            <ReviewForm
+              productId={product.id}
+              orderId={order.id}
+              onSuccess={() => setReviewOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

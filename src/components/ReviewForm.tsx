@@ -11,9 +11,10 @@ import { toast } from "sonner";
 interface Props {
   productId: string;
   orderId: string;
+  onSuccess?: () => void;
 }
 
-export function ReviewForm({ productId, orderId }: Props) {
+export function ReviewForm({ productId, orderId, onSuccess }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [rating, setRating] = useState(5);
@@ -64,6 +65,7 @@ export function ReviewForm({ productId, orderId }: Props) {
       toast.success(existing ? "Ulasan diperbarui" : "Ulasan dikirim");
       qc.invalidateQueries({ queryKey: ["review-mine", user?.id, productId] });
       qc.invalidateQueries({ queryKey: ["product-reviews", productId] });
+      onSuccess?.();
     },
     onError: (e: any) => toast.error("Gagal: " + (e.message || "unknown")),
   });

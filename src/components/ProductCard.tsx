@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
-import { Star, ShoppingCart } from "lucide-react";
+import { Star, ShoppingCart, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/store/cart";
 import { formatRupiah, getStockBadge, CATEGORY_EMOJI } from "@/lib/constants";
 import { useCategoryLogos } from "@/hooks/use-category-logos";
+import { useCountdown } from "@/hooks/use-countdown";
 import { toast } from "sonner";
 import { WishlistButton } from "@/components/WishlistButton";
 
@@ -18,19 +19,24 @@ interface ProductCardProps {
   stock: number;
   rating: number;
   image_url: string | null;
+  sale_price?: number | null;
+  sale_ends_at?: string | null;
 }
 
-export function ProductCard({ id, name, category, price, stock, rating, image_url }: ProductCardProps) {
+export function ProductCard({ id, name, category, price, stock, rating, image_url, sale_price, sale_ends_at }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem);
   const stockBadge = getStockBadge(stock);
   const logos = useCategoryLogos();
   const categoryLogo = logos[category];
+  const countdown = useCountdown(sale_ends_at);
+  const activeFlash = !!sale_price && countdown.isActive;
+  const displayPrice = activeFlash ? sale_price! : price;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (stock === 0) return;
-    addItem({ id, name, price, image_url, category, stock });
+    addItem({ id, name, price: displayPrice, image_url, category, stock });
     toast.success(`${name} ditambahkan ke keranjang`);
   };
 
@@ -45,7 +51,12 @@ export function ProductCard({ id, name, category, price, stock, rating, image_ur
           ) : (
             <span className="text-6xl">{CATEGORY_EMOJI[category] || '📦'}</span>
           )}
-          <div className="absolute right-3 top-3">
+          <div className="absolute right-3 top-3 flex flex-col items-end gap-1">
+            {activeFlash && (
+              <Badge className="gap-1 bg-red-500 text-white hover:bg-red-500/90 border-transparent">
+                <Zap className="h-3 w-3" /> FLASH
+              </Badge>
+            )}
             <Badge
               variant={stockBadge.variant}
               className={`${stockBadge.pulse ? 'animate-pulse' : ''} ${stockBadge.badgeClass}`}
@@ -69,7 +80,15 @@ export function ProductCard({ id, name, category, price, stock, rating, image_ur
             <span className="text-xs font-medium">{rating}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-lg font-bold text-primary">{formatRupiah(price)}</span>
+            <div>
+              <span className="text-lg font-bold text-primary">{formatRupiah(displayPrice)}</span>
+              {activeFlash && (
+                <span className="ml-1.5 text-xs text-muted-foreground line-through">{formatRupiah(price)}</span>
+              )}
+              {activeFlash && countdown.formatted && (
+                <p className="text-[10px] font-mono text-red-500">{countdown.formatted}</p>
+              )}
+            </div>
             <Button
               size="icon"
               variant="outline"

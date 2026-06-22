@@ -22,8 +22,9 @@ type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];
 type GradeForm = { product_id: string; grade: string; description: string; base_price: number; stock: number; is_active: boolean };
 type PkgForm = { grade_id: string; name: string; quantity: number; price: number; is_active: boolean };
 
-const EMPTY_PRODUCT: Partial<ProductInsert> = {
+const EMPTY_PRODUCT: Partial<ProductInsert> & { sale_price?: number | null; sale_ends_at?: string | null } = {
   name: "", slug: "", category: "facebook", price: 0, description: "", features: [], stock: 0, status: "active",
+  sale_price: null, sale_ends_at: null,
 };
 
 // ─── Inline grade + package panel for one product ───────────────────────────
@@ -357,8 +358,14 @@ export default function AdminProducts() {
   };
 
   const openEdit = (p: Product) => {
+    const pa = p as any;
     setEditId(p.id);
-    setForm({ name: p.name, slug: p.slug, category: p.category, price: p.price, description: p.description || "", stock: p.stock, status: p.status });
+    setForm({
+      name: p.name, slug: p.slug, category: p.category, price: p.price,
+      description: p.description || "", stock: p.stock, status: p.status,
+      sale_price: pa.sale_price ?? null,
+      sale_ends_at: pa.sale_ends_at ? new Date(pa.sale_ends_at).toISOString().slice(0, 16) : null,
+    } as any);
     setFeaturesText(((p.features as string[]) || []).join("\n"));
     setOpen(true);
   };
@@ -404,6 +411,26 @@ export default function AdminProducts() {
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="rounded-lg border border-dashed border-red-200 bg-red-50/50 p-3 space-y-3">
+                <p className="text-xs font-semibold text-red-600">⚡ Flash Sale (opsional)</p>
+                <div>
+                  <Label className="text-xs">Harga Flash Sale</Label>
+                  <Input
+                    type="number"
+                    placeholder="Kosongkan jika tidak ada flash sale"
+                    value={(form as any).sale_price ?? ""}
+                    onChange={(e) => setForm({ ...form, sale_price: e.target.value ? Number(e.target.value) : null } as any)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Berakhir Pada</Label>
+                  <Input
+                    type="datetime-local"
+                    value={(form as any).sale_ends_at ?? ""}
+                    onChange={(e) => setForm({ ...form, sale_ends_at: e.target.value || null } as any)}
+                  />
+                </div>
               </div>
               <Button type="submit" disabled={saveMutation.isPending} className="w-full">
                 {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editId ? "Update" : "Simpan"}
