@@ -17,8 +17,37 @@ const corsHeaders = {
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 
+async function verifySupabaseJWT(token: string): Promise<boolean> {
+  const jwtSecret = Deno.env.get("SUPABASE_JWT_SECRET");
+  if (!jwtSecret) return false;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+
+    const pad = (s: string) => s.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(s.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(pad(parts[1])));
+
+    // Check expiry
+    if (payload.exp && payload.exp < Date.now() / 1000) return false;
+
+    // Verify HMAC-SHA256 signature
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(jwtSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+    const sigBytes = Uint8Array.from(atob(pad(parts[2])), (c) => c.charCodeAt(0));
+    const dataBytes = encoder.encode(`${parts[0]}.${parts[1]}`);
+    return await crypto.subtle.verify("HMAC", keyMaterial, sigBytes, dataBytes);
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -26,6 +55,27 @@ serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
+      headers: jsonHeaders,
+    });
+  }
+
+  // Require a valid Supabase-signed JWT (user session, anon key, or service role key).
+  // This prevents the function from being called by arbitrary internet requests.
+  const token =
+    req.headers.get("Authorization")?.replace("Bearer ", "") ??
+    req.headers.get("apikey");
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: jsonHeaders,
+    });
+  }
+
+  const valid = await verifySupabaseJWT(token);
+  if (!valid) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
       headers: jsonHeaders,
     });
   }

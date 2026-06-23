@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, CheckCircle2, XCircle, Mail, Shield, Clock, User as UserIcon } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, Mail, Shield, Clock, User as UserIcon, Wallet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 type UserDetail = {
@@ -48,6 +50,8 @@ export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [topupAmount, setTopupAmount] = useState(100000);
+  const [topupLoading, setTopupLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -80,6 +84,26 @@ export default function AdminUserDetail() {
     };
     if (id) load();
   }, [id]);
+
+  const handleAdminTopup = async () => {
+    if (!user || topupAmount < 1000) return;
+    setTopupLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_topup_user", {
+        _user_id: user.id,
+        _amount: topupAmount,
+        _notes: "Admin manual top up",
+      });
+      if (error) throw error;
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result?.success) throw new Error(result?.message || "Gagal");
+      toast.success(`Saldo +${formatIDR(topupAmount)} berhasil ditambahkan`);
+      setUser((u) => u ? { ...u, wallet: { balance: result.new_balance, currency: "IDR" } } : u);
+      setTopupAmount(100000);
+    } catch (err: any) {
+      toast.error("Gagal top up: " + err.message);
+    } finally { setTopupLoading(false); }
+  };
 
   if (loading) {
     return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 w-full" /></div>;
@@ -189,6 +213,29 @@ export default function AdminUserDetail() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base"><Wallet className="mr-2 inline h-4 w-4" />Top Up Saldo (Admin)</CardTitle></CardHeader>
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label className="mb-1 block text-xs">Nominal (Rp)</Label>
+            <Input
+              type="number"
+              min={1000}
+              max={50000000}
+              step={1000}
+              value={topupAmount}
+              onChange={(e) => setTopupAmount(Number(e.target.value) || 0)}
+              className="w-44"
+            />
+          </div>
+          <Button onClick={handleAdminTopup} disabled={topupLoading || topupAmount < 1000} size="sm" className="gap-2">
+            {topupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+            Tambah Saldo
+          </Button>
+          <p className="text-xs text-muted-foreground">Saldo saat ini: <strong>{user.wallet ? formatIDR(user.wallet.balance) : "—"}</strong></p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Riwayat Order ({user.orders.length})</CardTitle></CardHeader>
