@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronUp, Layers, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronUp, Layers, Upload, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -294,6 +294,9 @@ export default function AdminProducts() {
   const [featuresText, setFeaturesText] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const { data: categorySettings } = useQuery({
     queryKey: ["category-settings"],
@@ -319,8 +322,22 @@ export default function AdminProducts() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      let imageUrl = form.image_url ?? null;
+
+      // Upload image if a new file was selected
+      if (imageFile) {
+        setUploadingImage(true);
+        const ext = imageFile.name.split(".").pop();
+        const path = `${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFile, { upsert: true });
+        setUploadingImage(false);
+        if (upErr) throw upErr;
+        const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
+        imageUrl = urlData.publicUrl;
+      }
+
       const features = featuresText.split("\n").map((f) => f.trim()).filter(Boolean);
-      const payload = { ...form, features, slug: form.slug || form.name!.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") };
+      const payload = { ...form, features, image_url: imageUrl, slug: form.slug || form.name!.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") };
       if (editId) {
         const { error } = await supabase.from("products").update(payload).eq("id", editId);
         if (error) throw error;
@@ -355,6 +372,8 @@ export default function AdminProducts() {
     setFeaturesText("");
     setEditId(null);
     setOpen(false);
+    setImageFile(null);
+    setImagePreview(null);
   };
 
   const openEdit = (p: Product) => {
@@ -363,11 +382,27 @@ export default function AdminProducts() {
     setForm({
       name: p.name, slug: p.slug, category: p.category, price: p.price,
       description: p.description || "", stock: p.stock, status: p.status,
+      image_url: p.image_url ?? null,
       sale_price: pa.sale_price ?? null,
       sale_ends_at: pa.sale_ends_at ? new Date(pa.sale_ends_at).toISOString().slice(0, 16) : null,
     } as any);
     setFeaturesText(((p.features as string[]) || []).join("\n"));
+    setImageFile(null);
+    setImagePreview(p.image_url ?? null);
     setOpen(true);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setForm((f) => ({ ...f, image_url: null }));
   };
 
   return (
@@ -385,6 +420,28 @@ export default function AdminProducts() {
             <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
               <div><Label>Nama</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
               <div><Label>Slug</Label><Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="auto-generated jika kosong" /></div>
+
+              {/* Image upload */}
+              <div>
+                <Label className="mb-2 block">Gambar Produk</Label>
+                {imagePreview ? (
+                  <div className="relative inline-block">
+                    <img src={imagePreview} alt="preview" className="h-32 w-32 rounded-xl object-cover border" />
+                    <button type="button" onClick={removeImage}
+                      className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white shadow">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/40 hover:bg-muted/70 transition-colors">
+                    <ImagePlus className="mb-1 h-6 w-6 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Upload</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleImageChange} />
+                  </label>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground">Maks 5 MB · JPG, PNG, WebP</p>
+              </div>
+
               <div>
                 <Label>Kategori</Label>
                 <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as any })}>
@@ -432,8 +489,8 @@ export default function AdminProducts() {
                   />
                 </div>
               </div>
-              <Button type="submit" disabled={saveMutation.isPending} className="w-full">
-                {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editId ? "Update" : "Simpan"}
+              <Button type="submit" disabled={saveMutation.isPending || uploadingImage} className="w-full">
+                {(saveMutation.isPending || uploadingImage) ? <><Loader2 className="h-4 w-4 animate-spin" /> {uploadingImage ? "Mengupload gambar..." : "Menyimpan..."}</> : editId ? "Update" : "Simpan"}
               </Button>
             </form>
           </DialogContent>
@@ -446,12 +503,21 @@ export default function AdminProducts() {
         ) : products?.map((p) => (
           <Card key={p.id} className="border-0 shadow-sm overflow-hidden">
             <CardContent className="flex items-center justify-between p-4">
-              <div className="flex-1 min-w-0">
-                <p className="truncate font-medium">{p.name}</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Badge variant="outline" className="text-xs uppercase">{p.category}</Badge>
-                  <span>{formatRupiah(p.price)}</span>
-                  <span>Stok: {p.stock}</span>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.name} className="h-10 w-10 rounded-lg object-cover shrink-0 border" />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted shrink-0 text-lg">
+                    {(p as any).emoji || "📦"}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{p.name}</p>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Badge variant="outline" className="text-xs uppercase">{p.category}</Badge>
+                    <span>{formatRupiah(p.price)}</span>
+                    <span>Stok: {p.stock}</span>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
