@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, useEffect } from "react";
-import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Copy, Check, Download, Lock, KeyRound, Upload, Loader2, FileImage, Star } from "lucide-react";
+import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Copy, Check, Download, Lock, KeyRound, Upload, Loader2, FileImage, Star, Ban } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRupiah, CATEGORY_EMOJI } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { WarrantyClaimDialog } from "@/components/WarrantyClaimDialog";
@@ -76,6 +77,8 @@ export default function OrderDetail() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const [copiedIdx, setCopiedIdx] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -218,6 +221,19 @@ export default function OrderDetail() {
     },
     enabled: !!order && order.payment_status === "paid",
   });
+
+  const handleCancel = async () => {
+    if (!order) return;
+    setCancelling(true);
+    const { data, error } = await supabase.rpc("user_cancel_order", { _order_id: order.id });
+    setCancelling(false);
+    const row = Array.isArray(data) ? data[0] : data;
+    if (error || !row?.success) { toast.error(row?.message || error?.message || "Gagal membatalkan"); return; }
+    toast.success("Order berhasil dibatalkan");
+    setCancelOpen(false);
+    queryClient.invalidateQueries({ queryKey: ["order", orderNumber] });
+    queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+  };
 
   // Auto-prompt review sekali setelah order selesai
   useEffect(() => {
@@ -458,6 +474,17 @@ export default function OrderDetail() {
                 {order.admin_notes && <p className="mt-1 italic">Catatan admin: {order.admin_notes}</p>}
               </div>
             )}
+
+            {order.payment_status === "pending" && order.order_status !== "cancelled" && user && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 border-destructive text-destructive hover:bg-destructive/10"
+                onClick={() => setCancelOpen(true)}
+              >
+                <Ban className="h-4 w-4" /> Batalkan Pesanan
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -598,6 +625,29 @@ export default function OrderDetail() {
           </div>
         )}
       </div>
+
+      {/* Cancel order dialog */}
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Batalkan pesanan ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Order <strong>{order?.order_number}</strong> akan dibatalkan. Tindakan ini tidak bisa dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Tidak</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Ya, Batalkan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Auto review prompt dialog */}
       {product?.id && (

@@ -41,6 +41,8 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminReviews from "./pages/admin/AdminReviews";
 import AdminChat from "./pages/admin/AdminChat";
 import AdminReports from "./pages/admin/AdminReports";
+import AdminBroadcast from "./pages/admin/AdminBroadcast";
+import Orders from "./pages/Orders";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -80,6 +82,7 @@ const App = () => (
           <Route path="/topup" element={<PublicLayout><TopUp /></PublicLayout>} />
           <Route path="/wallet" element={<PublicLayout><Wallet /></PublicLayout>} />
           <Route path="/wishlist" element={<PublicLayout><Wishlist /></PublicLayout>} />
+          <Route path="/orders" element={<PublicLayout><Orders /></PublicLayout>} />
           <Route
             path="/admin/*"
             element={
@@ -102,6 +105,7 @@ const App = () => (
                     <Route path="reviews" element={<AdminReviews />} />
                     <Route path="chat" element={<AdminChat />} />
                     <Route path="reports" element={<AdminReports />} />
+                    <Route path="broadcast" element={<AdminBroadcast />} />
                   </Route>
                 </Routes>
               </AdminAuthProvider>

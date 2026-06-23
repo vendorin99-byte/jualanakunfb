@@ -59,6 +59,7 @@ const NAV_ITEMS = [
   { to: "/admin/users", icon: Users, label: "Users" },
   { to: "/admin/reviews", icon: Star, label: "Ulasan" },
   { to: "/admin/chat", icon: MessageCircle, label: "Live Chat" },
+  { to: "/admin/broadcast", icon: Megaphone, label: "Broadcast" },
   { to: "/admin/settings", icon: Settings, label: "Pengaturan" },
 ];
 

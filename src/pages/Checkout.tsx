@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Wallet, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Loader2, Wallet, ShoppingBag, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCartStore } from "@/store/cart";
 import { useAuth } from "@/hooks/use-auth";
 import { formatRupiah, CATEGORY_EMOJI } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { PromoBannerSlot } from "@/components/PromoBannerSlot";
@@ -24,6 +25,11 @@ export default function Checkout() {
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [selectedGrade, setSelectedGrade] = useState("");
   const [selectedPkg, setSelectedPkg] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [promoInput, setPromoInput] = useState("");
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoMsg, setPromoMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [checkingPromo, setCheckingPromo] = useState(false);
 
   const item = items[0];
 
@@ -55,17 +61,43 @@ export default function Checkout() {
 
   const pkg = packages.find((p) => p.id === selectedPkg);
   const grade = grades.find((g) => g.id === selectedGrade);
-  // Pricing logic:
-  // - Jika ada paket dipilih → pakai harga paket
-  // - Jika ada grade tapi belum/tidak ada paket → pakai base_price grade × quantity cart
-  // - Jika tidak ada grade sama sekali → pakai harga produk × quantity cart
-  const totalPrice = pkg
-    ? pkg.price
-    : grade
-    ? grade.base_price * item.quantity
-    : item.price * item.quantity;
+  const basePrice = pkg ? pkg.price : grade ? grade.base_price * item.quantity : item.price * item.quantity;
+  const totalPrice = Math.max(0, basePrice - promoDiscount);
   const finalQty = pkg ? pkg.quantity : item.quantity;
   const insufficient = totalPrice > balance;
+
+  const applyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setCheckingPromo(true);
+    setPromoMsg(null);
+    const { data } = await supabase
+      .from("promos")
+      .select("id, discount_type, discount_value, min_purchase, max_uses, used_count, ends_at")
+      .eq("is_active", true)
+      .ilike("code", promoInput.trim())
+      .maybeSingle();
+    setCheckingPromo(false);
+    if (!data) { setPromoMsg({ text: "Kode promo tidak valid", ok: false }); return; }
+    if (data.max_uses != null && data.used_count >= data.max_uses) {
+      setPromoMsg({ text: "Kuota promo sudah habis", ok: false }); return;
+    }
+    if (data.ends_at && new Date(data.ends_at) < new Date()) {
+      setPromoMsg({ text: "Promo sudah kadaluwarsa", ok: false }); return;
+    }
+    if (basePrice < data.min_purchase) {
+      setPromoMsg({ text: `Minimum pembelian ${formatRupiah(data.min_purchase)}`, ok: false }); return;
+    }
+    const disc = data.discount_type === "percent"
+      ? Math.floor(basePrice * data.discount_value / 100)
+      : Math.min(data.discount_value, basePrice);
+    setPromoDiscount(disc);
+    setPromoCode(promoInput.trim().toUpperCase());
+    setPromoMsg({ text: `Hemat ${formatRupiah(disc)}!`, ok: true });
+  };
+
+  const removePromo = () => {
+    setPromoCode(""); setPromoInput(""); setPromoDiscount(0); setPromoMsg(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +116,7 @@ export default function Checkout() {
         _package_id: selectedPkg || null,
         _customer_name: null,
         _customer_phone: null,
+        _promo_code: promoCode || null,
       });
       if (error) throw error;
       const result = Array.isArray(data) ? data[0] : data;
@@ -185,6 +218,37 @@ export default function Checkout() {
             </Card>
           )}
 
+          {/* Promo Code */}
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-4 space-y-2">
+              <p className="text-sm font-medium flex items-center gap-1.5"><Tag className="h-4 w-4 text-primary" /> Kode Promo</p>
+              {promoCode ? (
+                <div className="flex items-center justify-between rounded-lg bg-green-50 px-3 py-2 text-sm dark:bg-green-900/20">
+                  <span className="font-mono font-semibold text-green-700 dark:text-green-300">{promoCode}</span>
+                  <button onClick={removePromo} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Masukkan kode promo"
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && applyPromo()}
+                    className="font-mono uppercase"
+                  />
+                  <Button type="button" variant="outline" onClick={applyPromo} disabled={checkingPromo || !promoInput.trim()}>
+                    {checkingPromo ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pakai"}
+                  </Button>
+                </div>
+              )}
+              {promoMsg && (
+                <p className={`text-xs ${promoMsg.ok ? "text-green-600" : "text-destructive"}`}>{promoMsg.text}</p>
+              )}
+            </CardContent>
+          </Card>
+
           {insufficient && (
             <Card className="border-0 bg-destructive/10 shadow-sm">
               <CardContent className="p-4 text-sm">
@@ -216,7 +280,17 @@ export default function Checkout() {
                 <div className="flex justify-between"><span className="text-muted-foreground">Jumlah akun</span><span>{pkg.quantity}</span></div>
               </div>
             )}
-            <div className="mt-4 border-t pt-4 flex justify-between">
+            {promoDiscount > 0 && (
+              <div className="mt-4 space-y-1 border-t pt-4 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Subtotal</span><span>{formatRupiah(basePrice)}</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span>Diskon ({promoCode})</span><span>-{formatRupiah(promoDiscount)}</span>
+                </div>
+              </div>
+            )}
+            <div className={`${promoDiscount > 0 ? "mt-2" : "mt-4 border-t pt-4"} flex justify-between`}>
               <span className="font-bold">Total</span>
               <span className="text-xl font-bold text-primary">{formatRupiah(totalPrice)}</span>
             </div>
